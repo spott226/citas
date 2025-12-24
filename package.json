@@ -1,0 +1,21 @@
+{
+  "name": "appointment-system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.5.0",
+    "better-sqlite3-session-store": "^0.1.0",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
+    "googleapis": "^169.0.0"
+  }
+}

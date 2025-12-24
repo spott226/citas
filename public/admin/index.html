@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panel Administrador | Chelii Spa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark bg-dark">
+  <div class="container-fluid">
+    <button class="btn btn-outline-light" data-bs-toggle="offcanvas" data-bs-target="#adminMenu">☰</button>
+    <span class="navbar-brand ms-3">🧖‍♀️ Chelii Spa | Admin</span>
+    <button class="btn btn-outline-light btn-sm" onclick="logout()">
+  Cerrar sesión
+</button>
+  </div>
+</nav>
+
+<!-- OFFCANVAS -->
+<div class="offcanvas offcanvas-start" id="adminMenu">
+  <div class="offcanvas-header">
+    <h5>Menú</h5>
+    <button class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="list-group">
+      <li class="list-group-item list-group-item-action" onclick="showSection('appointments')">📅 Citas</li>
+      <li class="list-group-item list-group-item-action" onclick="showSection('employees')">👩‍💼 Empleados</li>
+      <li class="list-group-item list-group-item-action" onclick="showSection('services')">🛎️ Servicios</li>
+      <li class="list-group-item list-group-item-action" onclick="showSection('clients')">👥 Clientes</li>
+    </ul>
+  </div>
+</div>
+
+<div class="container py-4">
+
+<!-- ================== CITAS ================== -->
+<div id="section-appointments">
+  <h4 id="panelTitle">📅 Citas</h4>
+
+  <div class="btn-group mb-3">
+    <button class="btn btn-outline-dark" onclick="loadAppointments('today')">Hoy</button>
+    <button class="btn btn-outline-dark" onclick="loadAppointments('week')">Semana</button>
+    <button class="btn btn-outline-dark" onclick="loadAppointments('month')">Mes</button>
+    <button class="btn btn-outline-dark" onclick="loadAppointments('past')">Pasadas</button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Fecha y hora</th>
+          <th>Cliente</th>
+          <th>Servicio</th>
+          <th>Empleada</th>
+          <th>Teléfono</th>
+          <th>Email</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="appointmentsTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================== EMPLEADOS ================== -->
+<div id="section-employees" class="d-none">
+  <h4>👩‍💼 Empleados</h4>
+
+  <div class="input-group mb-3">
+    <input id="employeeName" class="form-control" placeholder="Nombre">
+    <button class="btn btn-dark" onclick="addEmployee()">Agregar</button>
+  </div>
+
+  <table class="table table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>Nombre</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="employeesTable"></tbody>
+  </table>
+</div>
+
+<!-- ================== SERVICIOS ================== -->
+<div id="section-services" class="d-none">
+  <h4>🛎️ Servicios</h4>
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-4"><input id="serviceName" class="form-control" placeholder="Nombre"></div>
+    <div class="col-md-3"><input id="serviceDuration" type="number" class="form-control" placeholder="Minutos"></div>
+    <div class="col-md-5"><input id="serviceDescription" class="form-control" placeholder="Descripción"></div>
+  </div>
+
+  <button class="btn btn-dark mb-3" onclick="addService()">Agregar servicio</button>
+
+  <table class="table table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>Servicio</th>
+        <th>Duración</th>
+        <th>Descripción</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="servicesTable"></tbody>
+  </table>
+</div>
+
+</div>
+
+<!-- ================== CLIENTES ================== -->
+<div id="section-clients" class="d-none">
+  <h4>👥 Clientes</h4>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Nombre</th>
+          <th>Teléfono</th>
+          <th>Email</th>
+          <th>Visitas</th>
+          <th>Última visita</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="clientsTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* ===== Navegación ===== */
+function showSection(section){
+  localStorage.setItem('adminSection', section);
+
+  ['appointments','employees','services','clients'].forEach(s => {
+    const el = document.getElementById(`section-${s}`);
+    if(el) el.classList.add('d-none');
+  });
+
+  const active = document.getElementById(`section-${section}`);
+  if(active) active.classList.remove('d-none');
+
+  if(section === 'appointments') loadAppointments('today');
+  if(section === 'employees') loadEmployees();
+  if(section === 'services') loadServices();
+  if(section === 'clients') loadClients();
+}
+
+/* ===== CITAS ===== */
+let currentAppointmentId = null;
+
+/* Cargar citas */
+async function loadAppointments(type){
+  const res = await fetch(`/admin/appointments/${type}`);
+  const data = await res.json();
+  appointmentsTable.innerHTML = '';
+
+  if(!data.length){
+    appointmentsTable.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted">
+          No hay citas
+        </td>
+      </tr>`;
+    return;
+  }
+
+  data.forEach(a => {
+    const date = new Date(a.start_datetime);
+    const formatted = date.toLocaleString('es-MX', {
+      day:'2-digit',
+      month:'2-digit',
+      year:'numeric',
+      hour:'2-digit',
+      minute:'2-digit'
+    });
+
+    const waMsg = encodeURIComponent(
+      `Hola ${a.name}, te confirmamos tu cita de ${a.service} el ${formatted}. ¡Te esperamos en Chelii Spa!`
+    );
+
+    appointmentsTable.innerHTML += `
+      <tr>
+        <td>${formatted}</td>
+        <td>${a.name}</td>
+        <td>${a.service}</td>
+        <td>${a.employee || '-'}</td>
+        <td>${a.phone}</td>
+        <td>${a.email || '-'}</td>
+        <td>
+          <a class="btn btn-sm btn-success mb-1"
+             href="https://wa.me/${a.phone}?text=${waMsg}"
+             target="_blank">
+            WhatsApp
+          </a>
+
+          <button class="btn btn-sm btn-primary mb-1"
+             onclick="confirmAppointment(${a.id})">
+             Asistió
+            </button>
+
+          <button class="btn btn-sm btn-warning mb-1"
+            onclick="openRescheduleModal(${a.id})">
+            Reagendar
+          </button>
+
+          <button class="btn btn-sm btn-danger"
+            onclick="cancelAppointment(${a.id})">
+            Cancelar
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+/* ===== CONFIRMAR CITA (ASISTIÓ) ===== */
+async function confirmAppointment(id){
+  if(!confirm('¿Confirmar que el cliente asistió a la cita?')) return;
+
+  const res = await fetch(`/admin/appointments/${id}/confirm`, {
+    method: 'POST'
+  });
+
+  if(!res.ok){
+    alert('Error al confirmar asistencia');
+    return;
+  }
+
+  loadAppointments('today');
+}
+
+/* Cancelar cita */
+async function cancelAppointment(id){
+  if(!confirm('¿Cancelar esta cita?')) return;
+
+  await fetch(`/admin/appointments/${id}/cancel`, {
+    method: 'POST'
+  });
+
+  loadAppointments('today');
+}
+
+/* Abrir modal de reagendar */
+function openRescheduleModal(id){
+  currentAppointmentId = id;
+  document.getElementById('rescheduleDate').value = '';
+
+  const modal = new bootstrap.Modal(
+    document.getElementById('rescheduleModal')
+  );
+  modal.show();
+}
+
+/* Guardar nueva fecha */
+async function saveReschedule(){
+  const newDate = document.getElementById('rescheduleDate').value;
+  if(!newDate){
+    alert('Selecciona fecha y hora');
+    return;
+  }
+
+  const res = await fetch(
+    `/admin/appointments/${currentAppointmentId}/reschedule`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        new_start_datetime: newDate
+      })
+    }
+  );
+
+  if(!res.ok){
+    alert('Horario no disponible');
+    return;
+  }
+
+  bootstrap.Modal.getInstance(
+    document.getElementById('rescheduleModal')
+  ).hide();
+
+  loadAppointments('today');
+}
+
+/* Carga inicial */
+loadAppointments('today');
+
+/* ================== EMPLEADOS ================== */
+let currentEmployeeId = null;
+
+async function loadEmployees(){
+  const data = await fetch('/admin/employees').then(r=>r.json());
+  employeesTable.innerHTML='';
+
+  data.forEach(e=>{
+    employeesTable.innerHTML += `
+      <tr>
+        <td>${e.name}</td>
+        <td>${e.active ? 'Activa' : 'Inactiva'}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-1"
+            onclick="openServicesModal(${e.id}, '${e.name}')">
+            Servicios
+          </button>
+
+          ${
+            e.active
+              ? `<button class="btn btn-sm btn-danger"
+                   onclick="deactivateEmployee(${e.id})">
+                   Desactivar
+                 </button>`
+              : `<button class="btn btn-sm btn-success"
+                   onclick="activateEmployee(${e.id})">
+                   Activar
+                 </button>`
+          }
+        </td>
+      </tr>`;
+  });
+}
+
+async function openServicesModal(id, name){
+  currentEmployeeId = id;
+  employeeModalName.innerText = name;
+
+  const services = await fetch('/admin/services').then(r=>r.json());
+  const assigned = await fetch(`/admin/employee-services/${id}`).then(r=>r.json());
+
+  servicesCheckboxes.innerHTML = '';
+  services.forEach(s=>{
+    servicesCheckboxes.innerHTML += `
+      <div class="form-check">
+        <input class="form-check-input"
+          type="checkbox"
+          value="${s.id}"
+          ${assigned.includes(s.id) ? 'checked':''}>
+        <label class="form-check-label">
+          ${s.name}
+        </label>
+      </div>`;
+  });
+
+  new bootstrap.Modal(
+    document.getElementById('servicesModal')
+  ).show();
+}
+
+async function saveEmployeeServices(){
+  const services = [...document.querySelectorAll('#servicesCheckboxes input:checked')]
+    .map(c=>Number(c.value));
+
+  await fetch(`/admin/employee-services/${currentEmployeeId}`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ services })
+  });
+
+  bootstrap.Modal.getInstance(
+    document.getElementById('servicesModal')
+  ).hide();
+}
+/* ===== ACTIVAR / DESACTIVAR EMPLEADA ===== */
+
+async function deactivateEmployee(id){
+  if(!confirm('¿Desactivar esta empleada?')) return;
+
+  await fetch(`/admin/employees/${id}/deactivate`, {
+    method: 'POST'
+  });
+
+  loadEmployees();
+}
+
+async function activateEmployee(id){
+  if(!confirm('¿Activar esta empleada?')) return;
+
+  await fetch(`/admin/employees/${id}/activate`, {
+    method: 'POST'
+  });
+
+  loadEmployees();
+}
+
+/* ================== SERVICIOS ================== */
+async function loadServices(){
+  const data = await fetch('/admin/services').then(r=>r.json());
+  servicesTable.innerHTML='';
+  data.forEach(s=>{
+    servicesTable.innerHTML += `
+      <tr>
+        <td>${s.name}</td>
+        <td>${s.duration_minutes}</td>
+        <td>${s.description||'-'}</td>
+        <td>
+          <button class="btn btn-sm btn-danger"
+            onclick="deleteService(${s.id})">
+            Eliminar
+          </button>
+        </td>
+      </tr>`;
+  });
+}
+
+async function deleteService(id){
+  if(!confirm('¿Eliminar servicio?')) return;
+  await fetch(`/admin/services/${id}`,{method:'DELETE'});
+  loadServices();
+}
+
+loadAppointments('today');
+
+/* ===== CLIENTES ===== */
+async function loadClients(){
+  const res = await fetch('/admin/clients');
+  const data = await res.json();
+
+  clientsTable.innerHTML = '';
+
+  if(!data.length){
+    clientsTable.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted">
+          No hay clientes registrados
+        </td>
+      </tr>`;
+    return;
+  }
+
+  data.forEach(c=>{
+    const lastVisit = c.last_visit
+      ? new Date(c.last_visit).toLocaleDateString('es-MX')
+      : '-';
+
+    const waMsg = encodeURIComponent(
+      `Hola ${c.name} 😊 Gracias por visitarnos en Chelii Spa. 
+¿Nos ayudarías con una reseña en Google? ⭐`
+    );
+
+    clientsTable.innerHTML += `
+      <tr>
+        <td>${c.name}</td>
+        <td>${c.phone}</td>
+        <td>${c.email || '-'}</td>
+        <td>${c.visits_count}</td>
+        <td>${lastVisit}</td>
+        <td>
+          <a class="btn btn-sm btn-success"
+             target="_blank"
+             href="https://wa.me/${c.phone}?text=${waMsg}">
+            Reseña
+          </a>
+        </td>
+      </tr>`;
+  });
+   loadEmployees();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const lastSection = localStorage.getItem('adminSection');
+
+  if(lastSection){
+    showSection(lastSection);
+  } else {
+    showSection('appointments');
+  }
+});
+
+</script>
+<script>
+  // Evita volver al admin con botón atrás después de logout
+  history.pushState(null, null, location.href);
+  window.onpopstate = function () {
+    history.go(1);
+  };
+</script>
+<script>
+async function logout() {
+  await fetch('/admin/auth/logout', {
+    method: 'POST'
+  });
+
+  // Limpia historial y redirige
+  window.location.replace('/admin/login');
+}
+</script>
+
+<!-- MODAL SERVICIOS -->
+<div class="modal fade" id="servicesModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5>Servicios de <span id="employeeModalName"></span></h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="servicesCheckboxes"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="saveEmployeeServices()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REAGENDAR -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5>Reagendar cita</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="datetime-local" id="rescheduleDate" class="form-control">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="saveReschedule()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

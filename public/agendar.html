@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendar cita | Chelii Spa</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+
+      <div class="card shadow-sm">
+        <div class="card-body">
+
+          <h3 class="text-center mb-4">🌿 Agenda tu cita</h3>
+
+          <form id="appointmentForm">
+
+            <!-- Nombre -->
+            <div class="mb-3">
+              <label class="form-label">Nombre completo</label>
+              <input class="form-control" name="name" required>
+            </div>
+
+            <!-- Teléfono -->
+            <div class="mb-3">
+              <label class="form-label">Teléfono (WhatsApp)</label>
+              <input class="form-control" name="phone" required>
+            </div>
+
+            <!-- Email -->
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input class="form-control" name="email" type="email" required>
+            </div>
+
+            <!-- Servicio -->
+            <div class="mb-3">
+              <label class="form-label">Servicio</label>
+              <select class="form-select" name="service_id" id="services" required>
+                <option value="">Selecciona un servicio</option>
+              </select>
+            </div>
+
+            <!-- Fecha / hora -->
+            <div class="mb-3">
+              <label class="form-label">Fecha y hora</label>
+              <input
+                type="datetime-local"
+                class="form-control"
+                name="start_datetime"
+                id="startDatetime"
+                required>
+            </div>
+
+            <!-- Empleada -->
+            <div class="mb-3">
+              <label class="form-label">Empleada disponible</label>
+              <select class="form-select" name="employee_id" id="employees" required>
+                <option value="">Selecciona fecha y servicio</option>
+              </select>
+            </div>
+
+            <button class="btn btn-dark w-100">
+              Confirmar cita
+            </button>
+
+          </form>
+
+          <!-- Mensajes -->
+          <div id="successMsg" class="alert alert-success mt-4 text-center d-none">
+            ✨ ¡Cita confirmada! Te esperamos en Chelii Spa ✨
+          </div>
+
+          <div id="errorMsg" class="alert alert-danger mt-4 text-center d-none">
+            ❌ No hay disponibilidad para ese horario
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const serviceSelect = document.getElementById('services');
+  const datetimeInput = document.getElementById('startDatetime');
+  const employeeSelect = document.getElementById('employees');
+  const form = document.getElementById('appointmentForm');
+
+  /* ===== CARGAR SERVICIOS ===== */
+  fetch('/services')
+    .then(res => res.json())
+    .then(data => {
+      data.forEach(service => {
+        const option = document.createElement('option');
+        option.value = service.id;
+        option.textContent = `${service.name} (${service.duration_minutes} min)`;
+        serviceSelect.appendChild(option);
+      });
+    });
+
+  /* ===== CONSULTAR DISPONIBILIDAD ===== */
+  async function loadAvailability() {
+    const serviceId = serviceSelect.value;
+    const start = datetimeInput.value;
+
+    employeeSelect.innerHTML = '<option>Cargando...</option>';
+
+    if (!serviceId || !start) {
+      employeeSelect.innerHTML =
+        '<option>Selecciona servicio y horario</option>';
+      return;
+    }
+
+    const res = await fetch(
+      `/availability?service_id=${serviceId}&start_datetime=${start}`
+    );
+    const data = await res.json();
+
+    employeeSelect.innerHTML = '';
+
+    if (!data.length) {
+      employeeSelect.innerHTML =
+        '<option value="">No hay empleadas disponibles</option>';
+      return;
+    }
+
+    employeeSelect.innerHTML =
+      '<option value="">Selecciona una empleada</option>';
+
+    data.forEach(emp => {
+      const option = document.createElement('option');
+      option.value = emp.id;
+      option.textContent = emp.name;
+      employeeSelect.appendChild(option);
+    });
+  }
+
+  serviceSelect.addEventListener('change', loadAvailability);
+  datetimeInput.addEventListener('change', loadAvailability);
+
+  /* ===== ENVIAR CITA ===== */
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const data = Object.fromEntries(new FormData(form));
+
+    const res = await fetch('/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const json = await res.json();
+
+    if (json.success) {
+      successMsg.classList.remove('d-none');
+      errorMsg.classList.add('d-none');
+      form.reset();
+      employeeSelect.innerHTML =
+        '<option>Selecciona servicio y horario</option>';
+
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2500);
+    } else {
+      errorMsg.classList.remove('d-none');
+    }
+  });
+</script>
+
+</body>
+</html>
