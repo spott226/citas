@@ -1,22 +1,21 @@
 const { google } = require('googleapis');
-const path = require('path');
 
-// Ruta EXACTA al JSON de la service account
-const KEYFILEPATH = path.join(
-  __dirname,
-  '../config/credentials/sistema-de-citas-chelii-spa-950a2904d0f0.json'
-);
-
-// Alcances de Google Calendar
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-
-// Autenticación con Service Account
+// ======================================================
+// 🔑 AUTENTICACIÓN CON VARIABLES DE ENTORNO
+// ======================================================
 const auth = new google.auth.GoogleAuth({
-  keyFile: KEYFILEPATH,
-  scopes: SCOPES,
+  credentials: {
+    type: 'service_account',
+    project_id: process.env.GOOGLE_PROJECT_ID,
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  },
+  scopes: ['https://www.googleapis.com/auth/calendar'],
 });
 
-// Cliente de Google Calendar
+// ======================================================
+// 📆 CLIENTE GOOGLE CALENDAR
+// ======================================================
 const calendar = google.calendar({
   version: 'v3',
   auth,
@@ -27,7 +26,7 @@ const calendar = google.calendar({
 // ======================================================
 async function createEvent({ summary, description, start, end }) {
   const response = await calendar.events.insert({
-    calendarId: 'uses88767@gmail.com',
+    calendarId: process.env.GOOGLE_CALENDAR_ID,
     requestBody: {
       summary,
       description,
@@ -46,21 +45,21 @@ async function createEvent({ summary, description, start, end }) {
 }
 
 // ======================================================
-// ❌ ELIMINAR EVENTO (CANCELAR CITA)
+// ❌ ELIMINAR EVENTO
 // ======================================================
 async function deleteEvent(eventId) {
   await calendar.events.delete({
-    calendarId: 'uses88767@gmail.com',
+    calendarId: process.env.GOOGLE_CALENDAR_ID,
     eventId,
   });
 }
 
 // ======================================================
-// 🔁 ACTUALIZAR EVENTO (REAGENDAR CITA)
+// 🔁 ACTUALIZAR EVENTO
 // ======================================================
 async function updateEvent(eventId, start, end) {
   await calendar.events.patch({
-    calendarId: 'uses88767@gmail.com',
+    calendarId: process.env.GOOGLE_CALENDAR_ID,
     eventId,
     requestBody: {
       start: {
@@ -75,9 +74,6 @@ async function updateEvent(eventId, start, end) {
   });
 }
 
-// ======================================================
-// EXPORTS
-// ======================================================
 module.exports = {
   createEvent,
   deleteEvent,
